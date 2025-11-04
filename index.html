@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>اختبار مستوى اللغة الإنجليزية</title>
+<style>
+  :root{--accent:#0b74de;--bg:#f7f9fc;}
+  body{font-family: "Segoe UI", Tahoma, Arial; background:var(--bg); margin:0; padding:20px; color:#14202b}
+  .container{max-width:900px;margin:20px auto;background:#fff;border-radius:12px;padding:22px;box-shadow:0 6px 20px rgba(12,25,40,.08)}
+  h1{margin:0 0 8px;font-size:22px}
+  p.lead{margin:0 0 18px;color:#345}
+  .question{margin:18px 0;padding:14px;border-radius:8px;background:#fbfeff;border:1px solid rgba(10,20,30,.04)}
+  .q-title{font-weight:600;margin-bottom:8px}
+  .answers{display:flex;flex-direction:column;gap:8px}
+  button.answer{border:1px solid rgba(0,0,0,.06);background:#fff;padding:10px;border-radius:8px;text-align:left;cursor:pointer}
+  button.answer.selected{background:var(--accent);color:#fff;border-color:rgba(0,0,0,.04)}
+  .controls{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+  .progress{flex:1;height:10px;background:#e6eef9;border-radius:8px;margin:0 12px;overflow:hidden}
+  .progress > i{display:block;height:100%;background:var(--accent);width:0%}
+  .result{padding:14px;border-radius:8px;margin-top:16px}
+  .level-beginner{background:#fff7e6;border:1px solid #ffd8a8}
+  .level-intermediate{background:#eef9ff;border:1px solid #bfe0ff}
+  .level-advanced{background:#eefbeee;border:1px solid #bff0c7}
+  footer{margin-top:14px;color:#666;font-size:13px}
+  .small{font-size:13px;color:#445}
+  @media (max-width:520px){.controls{flex-direction:column;gap:8px}.progress{margin:0}}
+</style>
+</head>
+<body>
+<div class="container" dir="rtl">
+  <h1>اختبار تحديد مستوى اللغة الإنجليزية</h1>
+  <p class="lead">أجاوب على الأسئلة وبعدين اضغط "عرض النتيجة" — يطلع لك: مبتدئ، متوسط، أو محترف مع نصايح.</p>
+
+  <div id="quiz"></div>
+
+  <div class="controls">
+    <div>
+      <button id="prevBtn" style="padding:10px 14px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer">السابق</button>
+      <button id="nextBtn" style="padding:10px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer">التالي</button>
+    </div>
+    <div style="display:flex;align-items:center">
+      <span class="small">تقدم:</span>
+      <div class="progress" aria-hidden><i id="progBar"></i></div>
+      <button id="finishBtn" style="padding:10px 12px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer">عرض النتيجة</button>
+    </div>
+  </div>
+
+  <div id="resultBox" style="display:none"></div>
+  <footer>
+    <div class="small">ملاحظة: هذا اختبار مبدئي يعطي تقييم عام. لو تبي تقييم أدق (مثلاً IELTS/TOEFL)، أقدر أجهزلك اختبار أطول مع تحليل مفصل.</div>
+  </footer>
+</div>
+
+<script>
+const questions = [
+  { text: "Choose the correct form: I ___ to the store yesterday.", choices:["go","went","gone","going"], answer:1 },
+  { text: "What does 'quickly' mean?", choices:["ببطء","بسرعة","بقوة","بهدوء"], answer:1 },
+  { text: "Pick the correct preposition: She is good ___ math.", choices:["in","at","on","for"], answer:1 },
+  { text: "Which sentence is correct?", choices:[
+      "He don't like coffee.",
+      "He doesn't likes coffee.",
+      "He doesn't like coffee.",
+      "He not like coffee."
+    ], answer:2 },
+  { text: "Choose the right word: They have lived here ___ 2010.", choices:["since","for","from","at"], answer:0 },
+  { text: "Synonym of 'big'?", choices:["small","huge","tiny","narrow"], answer:1 },
+  { text: "Complete: If I ___ rich, I would travel the world.", choices:["am","were","was","be"], answer:1 },
+  { text: "Choose the sentence in passive voice:", choices:[
+      "The chef cooks the meal.",
+      "The meal is cooked by the chef.",
+      "The chef is cooking the meal.",
+      "The meal cooks the chef."
+    ], answer:1 },
+  { text: "Choose correct tag question: 'You're coming, ___?'", choices:["aren't you","isn't it","don't you","won't you"], answer:0 },
+  { text: "Which is an adjective?", choices:["run","beautiful","quickly","happiness"], answer:1 },
+  { text: "Past participle of 'write'?", choices:["writed","wrote","written","writing"], answer:2 },
+  { text: "Choose correct article: ___ apple a day keeps the doctor away.", choices:["A","An","The","Ø"], answer:1 }
+];
+
+let current = 0;
+let userAnswers = new Array(questions.length).fill(null);
+
+const quizEl = document.getElementById('quiz');
+const progBar = document.getElementById('progBar');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const finishBtn = document.getElementById('finishBtn');
+const resultBox = document.getElementById('resultBox');
+
+function renderQuestion(i){
+  const q = questions[i];
+  quizEl.innerHTML = `
+    <div class="question" aria-live="polite">
+      <div class="q-title">سؤال ${i+1} / ${questions.length}</div>
+      <div class="q-text">${q.text}</div>
+      <div class="answers" id="answers">
+        ${q.choices.map((c,idx)=>`<button class="answer" data-idx="${idx}">${c}</button>`).join('')}
+      </div>
+    </div>
+  `;
+  const buttons = Array.from(document.querySelectorAll('.answer'));
+  buttons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = Number(btn.dataset.idx);
+      userAnswers[i] = idx;
+      buttons.forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+    });
+  });
+  if(userAnswers[i]!==null){
+    const sel = document.querySelector('.answer[data-idx="'+userAnswers[i]+'"]');
+    if(sel) sel.classList.add('selected');
+  }
+  updateProgress();
+}
+
+function updateProgress(){
+  const pct = Math.round((current / (questions.length-1)) * 100);
+  progBar.style.width = pct + '%';
+}
+
+prevBtn.addEventListener('click', ()=>{
+  if(current>0){ current--; renderQuestion(current); }
+});
+nextBtn.addEventListener('click', ()=>{
+  if(current < questions.length-1){ current++; renderQuestion(current); }
+});
+finishBtn.addEventListener('click', showResult);
+
+function showResult(){
+  let correct = 0;
+  for(let i=0;i<questions.length;i++){
+    if(userAnswers[i] === questions[i].answer) correct++;
+  }
+  const percent = Math.round((correct / questions.length) * 100);
+
+  let levelLabel = '', className = '', advice = '', cefr='';
+  if(percent <= 40){
+    levelLabel = 'مبتدئ';
+    className = 'level-beginner';
+    cefr = 'A1 - A2 (مبتدئ)';
+    advice = 'تركز على الكلمات الأساسية، الأزمنة البسيطة، والاستماع لمقاطع قصيرة. حاول تذاكر 10 كلمات جديدة يومياً وممارسة المحادثة البسيطة.';
+  } else if(percent <= 70){
+    levelLabel = 'متوسط';
+    className = 'level-intermediate';
+    cefr = 'B1 - B2 (متوسط)';
+    advice = 'جيد — استمر بتوسيع المفردات، قراءة نصوص متوسطة، وممارسة المحادثة. جرّب مشاهدة فيديوهات تعليمية بدون ترجمة تدريجياً.';
+  } else {
+    levelLabel = 'محترف';
+    className = 'level-advanced';
+    cefr = 'C1 - C2 (متقدم/محترف)';
+    advice = 'ممتاز! ركز على الدقة، المصطلحات المتخصصة، والمصادر الأصلية كالكتب المتقدمة والبودكاست. جرّب امتحانات مثل IELTS/TOEFL إن حبيت شهادة رسمية.';
+  }
+
+  resultBox.style.display = 'block';
+  resultBox.className = 'result ' + className;
+  resultBox.innerHTML = `
+    <h3>النتيجة: ${levelLabel} — ${percent}%</h3>
+    <p class="small"><strong>مرجع مستوى (تقريبي):</strong> ${cefr}</p>
+    <p>${advice}</p>
+    <p class="small">تفاصيل: أجبت ${correct} من ${questions.length} أسئلة صحيحة.</p>
+    <div style="margin-top:8px">
+      <button id="retake" style="padding:8px 12px;border-radius:8px;border:1px solid #ddd;background:#fff;cursor:pointer">إعادة الاختبار</button>
+      <button id="share" style="padding:8px 12px;border-radius:8px;border:1px dashed var(--accent);background:#fff;margin-left:8px;cursor:pointer">نسخ النتيجة للنشر</button>
+    </div>
+  `;
+  document.getElementById('retake').addEventListener('click', ()=>{ userAnswers.fill(null); current=0; resultBox.style.display='none'; renderQuestion(0); });
+  document.getElementById('share').addEventListener('click', ()=>{
+    const text = `نتيجتي في اختبار اللغة: ${levelLabel} — ${percent}% (${correct}/${questions.length})`;
+    navigator.clipboard?.writeText(text).then(()=> alert('تم نسخ النتيجة!'));
+  });
+}
+
+renderQuestion(0);
+</script>
+</body>
+</html>
